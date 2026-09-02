@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "description": "A minimal OpenCode Mixture-of-Agents opinion fan-out plugin",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "opencode-moa-fusion.js",
   "files": [
     "dist",
     "examples",
-    "README.md"
+    "README.md",
+    "opencode-moa-fusion.js"
   ],
   "scripts": {
     "build": "tsup",

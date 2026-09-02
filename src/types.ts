@@ -2,12 +2,13 @@ export type WorkerDefinition = {
   id: string;
   model: string;
   focus?: string;
+  variant?: string;
   reasoningEffort?: string;
 };
 
 export type PluginConfig = {
   workers: WorkerDefinition[];
-  timeoutMs: number;
+  timeoutMs: number | false;
   debug: boolean;
 };
 

@@ -15,7 +15,7 @@ export const TOOL_DESCRIPTION =
   "Fan out one prompt to configured read-only worker models in parallel and return structured opinions. The calling agent must synthesize the result and decide the next step; this tool never judges, writes files, or executes commands.";
 
 export type MoaFusionToolHooks = {
-  onWorkerSessionStart?: (sessionID: string, worker: BoundWorker) => void;
+  onWorkerSessionStart?: (sessionID: string, worker: BoundWorker, touchActivity: () => void) => void;
   onWorkerSessionEnd?: (sessionID: string) => void;
 };
 

@@ -1,10 +1,11 @@
 import type { PluginConfig, WorkerDefinition } from "./types.js";
 
-export const DEFAULT_TIMEOUT_MS = 300_000;
+export const DEFAULT_TIMEOUT_MS = 3_600_000;
 
 const MODEL_REF_RE = /^[^/\s]+\/[^\s]+$/;
 const WORKER_ID_RE = /^[A-Za-z0-9_-]{1,32}$/;
 const MAX_FOCUS_LENGTH = 2_000;
+const MAX_VARIANT_LENGTH = 64;
 const MAX_REASONING_EFFORT_LENGTH = 64;
 
 export class ConfigError extends Error {
@@ -31,8 +32,8 @@ export function resolveConfig(raw: Record<string, unknown>): PluginConfig {
     return normalizeWorker(rawWorker, index, ids);
   });
 
-  const timeoutMs = positiveInteger(raw.timeoutMs, DEFAULT_TIMEOUT_MS, "timeoutMs");
-  if (timeoutMs > 86_400_000) {
+  const timeoutMs = raw.timeoutMs === false ? false : positiveInteger(raw.timeoutMs, DEFAULT_TIMEOUT_MS, "timeoutMs");
+  if (timeoutMs !== false && timeoutMs > 86_400_000) {
     throw new ConfigError("moa_fusion: timeoutMs cannot exceed 24 hours");
   }
 
@@ -75,6 +76,18 @@ function normalizeWorker(
     if (!focus) focus = undefined;
   }
 
+  let variant: string | undefined;
+  if (raw.variant !== undefined) {
+    if (typeof raw.variant !== "string") {
+      throw new ConfigError(`moa_fusion: worker ${index + 1} variant must be a string`);
+    }
+    variant = raw.variant.trim();
+    if (variant.length > MAX_VARIANT_LENGTH) {
+      throw new ConfigError(`moa_fusion: worker ${index + 1} variant is too long`);
+    }
+    if (!variant) variant = undefined;
+  }
+
   let reasoningEffort: string | undefined;
   if (raw.reasoningEffort !== undefined) {
     if (typeof raw.reasoningEffort !== "string") {
@@ -86,8 +99,11 @@ function normalizeWorker(
     }
     if (!reasoningEffort) reasoningEffort = undefined;
   }
+  if (variant && reasoningEffort) {
+    throw new ConfigError(`moa_fusion: worker ${index + 1} cannot set both variant and reasoningEffort`);
+  }
 
-  return { id, model, focus, reasoningEffort };
+  return { id, model, focus, variant, reasoningEffort };
 }
 
 function positiveInteger(value: unknown, fallback: number, name: string): number {

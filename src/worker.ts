@@ -22,11 +22,62 @@ export type CallWorkerOptions = {
   directory: string;
   prompt: string;
   worker: BoundWorker;
-  timeoutMs: number;
+  timeoutMs: number | false;
   abort: AbortSignal;
-  onWorkerSessionStart?: (sessionID: string, worker: BoundWorker) => void;
+  onWorkerSessionStart?: (sessionID: string, worker: BoundWorker, touchActivity: () => void) => void;
   onWorkerSessionEnd?: (sessionID: string) => void;
 };
+
+type PromptBody = NonNullable<Parameters<OpencodeClient["session"]["prompt"]>[0]["body"]> & {
+  variant?: string;
+};
+
+export type WorkerActivity = {
+  touch: () => void;
+  stop: () => void;
+};
+
+export function createWorkerActivity(timeoutMs: number | false, onTimeout: () => void): WorkerActivity {
+  if (timeoutMs === false) {
+    return { touch() {}, stop() {} };
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let lastActivityAt = performance.now();
+  let stopped = false;
+  let fired = false;
+
+  const schedule = () => {
+    if (stopped || fired) return;
+    if (timer) clearTimeout(timer);
+    const remaining = timeoutMs - (performance.now() - lastActivityAt);
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (stopped || fired) return;
+      if (performance.now() - lastActivityAt >= timeoutMs) {
+        fired = true;
+        onTimeout();
+      } else {
+        schedule();
+      }
+    }, Math.min(Math.max(1, remaining), 2_147_483_647));
+    timer.unref?.();
+  };
+
+  schedule();
+  return {
+    touch() {
+      if (stopped || fired) return;
+      lastActivityAt = performance.now();
+      schedule();
+    },
+    stop() {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      timer = undefined;
+    },
+  };
+}
 
 export async function callWorker(options: CallWorkerOptions): Promise<WorkerCallResult> {
   const startedAt = Date.now();
@@ -51,39 +102,58 @@ export async function callWorker(options: CallWorkerOptions): Promise<WorkerCall
     if (!sessionID) {
       return failure(worker, "failed to create worker session", startedAt);
     }
-    options.onWorkerSessionStart?.(sessionID, worker);
+    const workerSessionID = sessionID;
 
     const controller = new AbortController();
     let timedOut = false;
-    const onOuterAbort = () => controller.abort(new Error("aborted"));
+    let sessionAbortRequest: Promise<unknown> | undefined;
+    const abortWorkerSession = () => {
+      if (sessionAbortRequest) return;
+      sessionAbortRequest = Promise.resolve()
+        .then(() =>
+          options.client.session.abort({
+            path: { id: workerSessionID },
+            query: { directory: options.directory },
+          }),
+        )
+        .catch(() => undefined);
+    };
+    const abortWorker = (reason: "aborted" | "timeout") => {
+      if (reason === "timeout") timedOut = true;
+      abortWorkerSession();
+      controller.abort(new Error(reason));
+    };
+    const activity = createWorkerActivity(options.timeoutMs, () => abortWorker("timeout"));
+    options.onWorkerSessionStart?.(workerSessionID, worker, activity.touch);
+    const onOuterAbort = () => abortWorker("aborted");
     options.abort.addEventListener("abort", onOuterAbort, { once: true });
     if (options.abort.aborted) onOuterAbort();
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      controller.abort(new Error("timeout"));
-    }, options.timeoutMs);
 
     let promptResponse: Awaited<ReturnType<OpencodeClient["session"]["prompt"]>> | undefined;
     let promptError: unknown;
     try {
+      const body = {
+        model: parseModelRef(worker.model),
+        agent: "general",
+        ...(worker.variant ? { variant: worker.variant } : {}),
+        system: buildWorkerSystemPrompt(worker.focus),
+        parts: [{ type: "text" as const, text: buildWorkerUserPrompt(options.prompt) }],
+        tools: READ_ONLY_TOOLS,
+      } as PromptBody;
+
       promptResponse = await options.client.session.prompt({
-        path: { id: sessionID },
+        path: { id: workerSessionID },
         query: { directory: options.directory },
-        body: {
-          model: parseModelRef(worker.model),
-          agent: "general",
-          system: buildWorkerSystemPrompt(worker.focus),
-          parts: [{ type: "text", text: buildWorkerUserPrompt(options.prompt) }],
-          tools: READ_ONLY_TOOLS,
-        },
+        body,
         signal: controller.signal,
       });
     } catch (error) {
       promptError = error;
     } finally {
-      clearTimeout(timeout);
+      activity.stop();
       options.abort.removeEventListener("abort", onOuterAbort);
-      options.onWorkerSessionEnd?.(sessionID);
+      await sessionAbortRequest;
+      options.onWorkerSessionEnd?.(workerSessionID);
     }
 
     if (controller.signal.aborted) {
