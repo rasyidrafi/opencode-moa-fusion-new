@@ -139,10 +139,10 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
     assert.equal(request.body.tools.write, false);
     assert.equal(request.body.tools.edit, false);
     assert.equal(request.body.tools.moa_fusion, false);
-    assert.match(request.body.system, /MUST be text|exact compact structure/i);
+    assert.match(request.body.system, /Return text using exactly this format|Do not use JSON/i);
     assert.match(request.body.parts[0].text, /<user_prompt>/);
   }
 
   assert.ok(result.metadata.sessions.length >= 2, "successful sessions should remain available for debug");
-  assert.equal(contextMetadata[0].metadata.anonymous, true);
+  assert.equal(contextMetadata[0].metadata.workerCount, 3);
 });

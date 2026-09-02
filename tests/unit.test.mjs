@@ -25,5 +25,5 @@ test("configuration rejects a worker set above the safety cap", () => {
 test("worker contract is text markers, not JSON", () => {
   assert.match(READ_ONLY_WORKER_SYSTEM_PROMPT, /---summary---/);
   assert.match(READ_ONLY_WORKER_SYSTEM_PROMPT, /---confidence---/);
-  assert.match(READ_ONLY_WORKER_SYSTEM_PROMPT, /request for JSON|text contract/i);
+  assert.match(READ_ONLY_WORKER_SYSTEM_PROMPT, /Return text|Do not use JSON/i);
 });

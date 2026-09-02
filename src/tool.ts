@@ -12,7 +12,7 @@ const ArgsSchema = {
 };
 
 export const TOOL_DESCRIPTION =
-  "Fan out one prompt to configured anonymous, read-only worker models in parallel and return structured opinions. The calling agent must synthesize the result and decide the next step; this tool never judges, writes files, or executes commands.";
+  "Fan out one prompt to configured read-only worker models in parallel and return structured opinions. The calling agent must synthesize the result and decide the next step; this tool never judges, writes files, or executes commands.";
 
 export function moaFusionTool(
   client: OpencodeClient,
@@ -34,14 +34,14 @@ export function moaFusionTool(
         const message = configError?.message ?? "moa_fusion: invalid plugin configuration";
         return {
           output: formatConfigurationError(message),
-          metadata: { partial: true, anonymous: true, workerCount: 0 },
+          metadata: { partial: true, workerCount: 0 },
         };
       }
 
       const boundWorkers = bindAliases(config.workers);
       context.metadata({
-        title: `moa_fusion: ${boundWorkers.length} anonymous workers`,
-        metadata: { workerCount: boundWorkers.length, anonymous: true },
+        title: `moa_fusion: ${boundWorkers.length} workers`,
+        metadata: { workerCount: boundWorkers.length },
       });
 
       try {
@@ -52,7 +52,6 @@ export function moaFusionTool(
           output: formatConfigurationError(message),
           metadata: {
             partial: true,
-            anonymous: true,
             workerCount: boundWorkers.length,
             workers: boundWorkers.map((worker) => ({ alias: worker.alias, status: "unavailable" })),
           },
@@ -89,7 +88,6 @@ export function moaFusionTool(
       const partial = results.some((result) => !result.ok);
       const metadata: Record<string, unknown> = {
         partial,
-        anonymous: true,
         workerCount: results.length,
         successfulWorkers: results.filter((result) => result.ok).length,
         workers: results.map((result) => ({
@@ -106,7 +104,7 @@ export function moaFusionTool(
       }
 
       return {
-        title: `moa_fusion: ${results.length} anonymous workers`,
+        title: `moa_fusion: ${results.length} workers`,
         output: formatFusionOutput(results),
         metadata,
       };
