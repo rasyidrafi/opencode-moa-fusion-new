@@ -1,0 +1,30 @@
+{
+  "name": "opencode-moa-fusion-new",
+  "version": "0.1.0",
+  "description": "A minimal OpenCode Mixture-of-Agents opinion fan-out plugin",
+  "type": "module",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "examples",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:e2e": "npm run build && node --test tests/e2e.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.18.25"
+  },
+  "devDependencies": {
+    "@opencode-ai/sdk": "^1.18.25",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.0"
+  }
+}
