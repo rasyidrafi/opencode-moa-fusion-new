@@ -13,20 +13,15 @@ export function formatFusionOutput(results: WorkerCallResult[]): string {
     blocks.push("");
   }
 
-  return wrapTaskResult(blocks.join("\n").trimEnd());
+  return blocks.join("\n").trimEnd();
 }
 
 export function formatConfigurationError(message: string): string {
-  return wrapTaskResult([
+  return [
     "◆ OPINIONS — UNAVAILABLE",
     "",
     "The configured worker set could not run.",
     message,
     "No worker model identities are included in this error.",
-  ].join("\n"));
-}
-
-function wrapTaskResult(output: string): string {
-  const safeOutput = output.replace(/<\/?task_result>/gi, (tag) => tag.replace("<", "&lt;").replace(">", "&gt;"));
-  return `<task_result>\n${safeOutput}\n</task_result>`;
+  ].join("\n");
 }

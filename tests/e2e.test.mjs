@@ -49,14 +49,12 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
             return { error: { data: { message: "provider fake/broken failed" } } };
           }
           const focusText = request.body.system.includes("secret lens") ? "focus secret lens" : "no configured focus";
+          const finalText = `model fake/${model}; ${focusText}.\n\n### Position\nPrefer the evidence-backed option.\n\n### Evidence\nThe fake worker observed the request.\n\n### Risks\nThe result needs validation.\n\n### Recommendation\nRun the next verification step.\n\n### Confidence\n80/100 because the evidence is limited.`;
           return {
             data: {
-              parts: [
-                {
-                  type: "text",
-                  text: `model fake/${model}; ${focusText}.\n\n### Position\nPrefer the evidence-backed option.\n\n### Evidence\nThe fake worker observed the request.\n\n### Risks\nThe result needs validation.\n\n### Recommendation\nRun the next verification step.\n\n### Confidence\n80/100 because the evidence is limited.`,
-                },
-              ],
+              parts: model === "alpha"
+                ? [{ type: "text", text: "intermediate worker progress that must not be returned" }, { type: "text", text: finalText }]
+                : [{ type: "text", text: finalText }],
             },
           };
         } finally {
@@ -109,8 +107,7 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
   assert.equal(maxActive, 3, "all workers should run concurrently");
   assert.equal(result.metadata.partial, true);
   assert.equal(result.metadata.successfulWorkers, 2);
-  assert.match(result.output, /^<task_result>\n/);
-  assert.match(result.output, /\n<\/task_result>$/);
+  assert.doesNotMatch(result.output, /<task_result>|<\/task_result>/);
   assert.match(result.output, /Worker A/);
   assert.match(result.output, /Worker B/);
   assert.match(result.output, /Worker C/);
@@ -120,7 +117,7 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
   assert.match(result.output, /### Risks/);
   assert.match(result.output, /### Recommendation/);
   assert.match(result.output, /### Confidence/);
-  assert.doesNotMatch(result.output, /MOA_FUSION_RESULT|<worker_output|---summary---/);
+  assert.doesNotMatch(result.output, /intermediate worker progress|MOA_FUSION_RESULT|<worker_output|---summary---/);
   assert.doesNotMatch(result.output, /fake\/(alpha|beta|broken)/);
   assert.doesNotMatch(result.output, /secret lens/);
   assert.doesNotMatch(result.output, /first|second|third/);
@@ -146,7 +143,7 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
   }
   for (const request of prompts) {
     assert.equal(request.query.directory, DIRECTORY);
-    assert.equal(request.body.tools.bash, false);
+    assert.equal(request.body.tools.bash, true);
     assert.equal(request.body.tools.write, false);
     assert.equal(request.body.tools.edit, false);
     assert.equal(request.body.tools.moa_fusion, false);

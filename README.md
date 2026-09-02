@@ -117,26 +117,19 @@ same shape as `fh-opinion`:
 ```
 
 The worker response is kept intact and is not parsed, repaired, or retried.
-The complete tool result is wrapped programmatically, matching OpenCode's task
-tool protocol:
-
-```text
-<task_result>
-◆ OPINIONS — ALL CONFIGURED AGENTS
-...
-</task_result>
-```
-
-The wrapper is added by the plugin, not requested from the workers. It marks the
-current MOA result cleanly without asking them to emit protocol tags. The child
-sessions still return only their current response; the wrapper does not replay
-their full session histories.
+The MOA tool returns normal Markdown without a `task_result` wrapper. OpenCode's
+built-in `TaskTool` adds that wrapper around its own subagent result, but this
+custom tool does not need to imitate it. The child sessions return only their
+current response, and the plugin keeps the final text part instead of joining
+intermediate progress parts.
 
 ## Safety and failure behavior
 
-- Workers receive `read`, `glob`, and `grep` only.
-- `bash`, `write`, `edit`, `webfetch`, `patch`, `todowrite`, and recursive
-  `moa_fusion` calls are explicitly disabled.
+- Workers receive `read`, `glob`, `grep`, and `bash`.
+- `write`, `edit`, `webfetch`, `patch`, `todowrite`, and recursive `moa_fusion`
+  calls are explicitly disabled.
+- Bash is available for read-only inspection and verification. Workers are
+  instructed not to modify files or run installation commands.
 - Worker model references are checked against OpenCode's configured providers.
 - Each worker has an independent inactivity timeout. OpenCode stream events
   reset it, so there is no fixed wall-clock deadline for an active worker.

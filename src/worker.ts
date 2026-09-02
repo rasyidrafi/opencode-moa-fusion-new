@@ -7,7 +7,7 @@ const READ_ONLY_TOOLS: Record<string, boolean> = {
   read: true,
   glob: true,
   grep: true,
-  bash: false,
+  bash: true,
   write: false,
   edit: false,
   webfetch: false,
@@ -213,13 +213,12 @@ function modelID(value: string): string {
 }
 
 function partsToText(parts: unknown[]): string {
-  return parts
+  const textParts = parts
     .filter(
       (part): part is { type: "text"; text: string } =>
         isRecord(part) && part.type === "text" && typeof part.text === "string",
-    )
-    .map((part) => part.text)
-    .join("");
+    );
+  return textParts.at(-1)?.text ?? "";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
