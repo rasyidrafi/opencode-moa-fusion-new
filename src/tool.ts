@@ -5,7 +5,7 @@ import { ConfigError, resolveConfig } from "./config.js";
 import { validateConfiguredModels } from "./models.js";
 import { formatConfigurationError, formatFusionOutput } from "./output.js";
 import { callWorker } from "./worker.js";
-import type { PluginConfig, WorkerCallResult } from "./types.js";
+import type { BoundWorker, PluginConfig, WorkerCallResult } from "./types.js";
 
 const ArgsSchema = {
   prompt: tool.schema.string().min(1).describe("The request to analyze independently with configured workers."),
@@ -14,9 +14,15 @@ const ArgsSchema = {
 export const TOOL_DESCRIPTION =
   "Fan out one prompt to configured read-only worker models in parallel and return structured opinions. The calling agent must synthesize the result and decide the next step; this tool never judges, writes files, or executes commands.";
 
+export type MoaFusionToolHooks = {
+  onWorkerSessionStart?: (sessionID: string, worker: BoundWorker) => void;
+  onWorkerSessionEnd?: (sessionID: string) => void;
+};
+
 export function moaFusionTool(
   client: OpencodeClient,
   rawOptions: Record<string, unknown> = {},
+  hooks: MoaFusionToolHooks = {},
 ) {
   let config: PluginConfig | undefined;
   let configError: ConfigError | undefined;
@@ -68,6 +74,8 @@ export function moaFusionTool(
             worker,
             timeoutMs: config.timeoutMs,
             abort: context.abort,
+            onWorkerSessionStart: hooks.onWorkerSessionStart,
+            onWorkerSessionEnd: hooks.onWorkerSessionEnd,
           }),
         ),
       );

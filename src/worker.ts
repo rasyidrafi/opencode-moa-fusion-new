@@ -24,6 +24,8 @@ export type CallWorkerOptions = {
   worker: BoundWorker;
   timeoutMs: number;
   abort: AbortSignal;
+  onWorkerSessionStart?: (sessionID: string, worker: BoundWorker) => void;
+  onWorkerSessionEnd?: (sessionID: string) => void;
 };
 
 export async function callWorker(options: CallWorkerOptions): Promise<WorkerCallResult> {
@@ -49,6 +51,7 @@ export async function callWorker(options: CallWorkerOptions): Promise<WorkerCall
     if (!sessionID) {
       return failure(worker, "failed to create worker session", startedAt);
     }
+    options.onWorkerSessionStart?.(sessionID, worker);
 
     const controller = new AbortController();
     let timedOut = false;
@@ -80,6 +83,7 @@ export async function callWorker(options: CallWorkerOptions): Promise<WorkerCall
     } finally {
       clearTimeout(timeout);
       options.abort.removeEventListener("abort", onOuterAbort);
+      options.onWorkerSessionEnd?.(sessionID);
     }
 
     if (controller.signal.aborted) {

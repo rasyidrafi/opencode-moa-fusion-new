@@ -29,7 +29,11 @@ For a local checkout, use the path form supported by your OpenCode version:
       "/absolute/path/to/opencode-moa-fusion-new/dist/index.js",
       {
         "workers": [
-          { "id": "one", "model": "provider/model-a" },
+          {
+            "id": "one",
+            "model": "provider/model-a",
+            "reasoningEffort": "high"
+          },
           { "id": "two", "model": "provider/model-b" },
           {
             "id": "three",
@@ -38,7 +42,6 @@ For a local checkout, use the path form supported by your OpenCode version:
           }
         ],
         "timeoutMs": 180000,
-        "maxWorkers": 5,
         "debug": false
       }
     ]
@@ -46,12 +49,24 @@ For a local checkout, use the path form supported by your OpenCode version:
 }
 ```
 
-The `workers` array is the worker count. `maxWorkers` is only a safety cap and
-defaults to 8. The tool accepts only a `prompt` argument. Models cannot be
-selected or changed at runtime.
+The `workers` array determines the worker count. There is no separate worker
+cap. The tool accepts only a `prompt` argument, so models cannot be selected or
+changed at runtime.
 
-Reasoning configuration is intentionally deferred. The current MVP uses the
-configured OpenCode `general` worker profile.
+Set `reasoningEffort` on an individual worker when the provider supports it:
+
+```json
+{
+  "id": "deep-review",
+  "model": "halotec/codex/gpt-5.6-luna",
+  "reasoningEffort": "xhigh"
+}
+```
+
+The plugin applies this as a per-worker OpenCode request option. OpenCode maps
+it to the provider's request format. The provider or model still decides which
+effort values are valid. `reasoningEffort` is separate from the model reference;
+do not append `xhigh` to the model string.
 
 ## Anonymous workers
 

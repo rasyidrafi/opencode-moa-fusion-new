@@ -1,11 +1,11 @@
 import type { PluginConfig, WorkerDefinition } from "./types.js";
 
 export const DEFAULT_TIMEOUT_MS = 300_000;
-export const DEFAULT_MAX_WORKERS = 8;
 
 const MODEL_REF_RE = /^[^/\s]+\/[^\s]+$/;
 const WORKER_ID_RE = /^[A-Za-z0-9_-]{1,32}$/;
 const MAX_FOCUS_LENGTH = 2_000;
+const MAX_REASONING_EFFORT_LENGTH = 64;
 
 export class ConfigError extends Error {
   constructor(message: string) {
@@ -18,16 +18,6 @@ export function resolveConfig(raw: Record<string, unknown>): PluginConfig {
   const rawWorkers = raw.workers;
   if (!Array.isArray(rawWorkers) || rawWorkers.length < 2) {
     throw new ConfigError("moa_fusion: configure at least two workers in plugin options");
-  }
-
-  const maxWorkers = positiveInteger(raw.maxWorkers, DEFAULT_MAX_WORKERS, "maxWorkers");
-  if (maxWorkers < 2 || maxWorkers > DEFAULT_MAX_WORKERS) {
-    throw new ConfigError(`moa_fusion: maxWorkers must be between 2 and ${DEFAULT_MAX_WORKERS}`);
-  }
-  if (rawWorkers.length > maxWorkers) {
-    throw new ConfigError(
-      `moa_fusion: configured worker count exceeds the maxWorkers safety limit (${maxWorkers})`,
-    );
   }
 
   const ids = new Set<string>();
@@ -51,7 +41,7 @@ export function resolveConfig(raw: Record<string, unknown>): PluginConfig {
     throw new ConfigError("moa_fusion: debug must be a boolean");
   }
 
-  return { workers, timeoutMs, maxWorkers, debug };
+  return { workers, timeoutMs, debug };
 }
 
 function normalizeWorker(
@@ -85,7 +75,19 @@ function normalizeWorker(
     if (!focus) focus = undefined;
   }
 
-  return { id, model, focus };
+  let reasoningEffort: string | undefined;
+  if (raw.reasoningEffort !== undefined) {
+    if (typeof raw.reasoningEffort !== "string") {
+      throw new ConfigError(`moa_fusion: worker ${index + 1} reasoningEffort must be a string`);
+    }
+    reasoningEffort = raw.reasoningEffort.trim();
+    if (reasoningEffort.length > MAX_REASONING_EFFORT_LENGTH) {
+      throw new ConfigError(`moa_fusion: worker ${index + 1} reasoningEffort is too long`);
+    }
+    if (!reasoningEffort) reasoningEffort = undefined;
+  }
+
+  return { id, model, focus, reasoningEffort };
 }
 
 function positiveInteger(value: unknown, fallback: number, name: string): number {

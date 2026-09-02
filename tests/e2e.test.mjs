@@ -11,6 +11,8 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
   let nextSession = 1;
   const created = [];
   const prompts = [];
+  const chatParams = [];
+  let hooks;
 
   const client = {
     config: {
@@ -35,6 +37,9 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
       },
       async prompt(request) {
         prompts.push(request);
+        const params = { options: {} };
+        await hooks?.["chat.params"]?.({ sessionID: request.path.id }, params);
+        chatParams.push({ sessionID: request.path.id, ...params });
         active += 1;
         maxActive = Math.max(maxActive, active);
         try {
@@ -61,7 +66,7 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
     },
   };
 
-  const hook = await plugin(
+  hooks = await plugin(
     {
       client,
       project: {},
@@ -73,7 +78,7 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
     },
     {
       workers: [
-        { id: "first", model: "fake/alpha", focus: "secret lens" },
+        { id: "first", model: "fake/alpha", focus: "secret lens", reasoningEffort: "xhigh" },
         { id: "second", model: "fake/beta" },
         { id: "third", model: "fake/broken" },
       ],
@@ -82,10 +87,10 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
     },
   );
 
-  assert.deepEqual(Object.keys(hook.tool), ["moa_fusion"]);
+  assert.deepEqual(Object.keys(hooks.tool), ["moa_fusion"]);
 
   const contextMetadata = [];
-  const result = await hook.tool.moa_fusion.execute(
+  const result = await hooks.tool.moa_fusion.execute(
     { prompt: "Evaluate this architecture" },
     {
       sessionID: "parent-session",
@@ -128,6 +133,8 @@ test("moa_fusion fans out anonymously, preserves structure, and tolerates partia
 
   assert.equal(created.length, 3);
   assert.equal(prompts.length, 3);
+  assert.equal(chatParams.filter((params) => params.options.reasoningEffort === "xhigh").length, 1);
+  assert.equal(chatParams.filter((params) => params.options.reasoningEffort === undefined).length, 2);
   for (const item of created) {
     assert.equal(item.request.query.directory, DIRECTORY);
     assert.match(item.request.body.title, /^moa:Worker [A-Z]+$/);
