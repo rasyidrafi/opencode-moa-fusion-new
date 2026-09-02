@@ -79,7 +79,7 @@ Some OpenCode adapters expose reasoning levels as model variants instead. Use
 ```json
 {
   "id": "antigravity",
-  "model": "antigravity-cli/gemini-3.7-flash",
+  "model": "antigravity-cli/gemini-3.8-flash",
   "variant": "high"
 }
 ```
